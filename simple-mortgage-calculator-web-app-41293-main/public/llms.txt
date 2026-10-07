@@ -1,0 +1,35 @@
+# Mortgage Quote Pro
+
+> Professional mortgage calculators and quote management for homebuyers, refinancers, and loan officers. Free tools for purchase, refinance, HELOC, buydowns, early payoff, affordability, and reverse mortgages — with PDF exports and shareable quotes.
+
+## Pages
+
+- [Mortgage Calculator](/): Free mortgage calculator with PMI, taxes, insurance, scenarios, and DTI.
+- [Affordability Calculator](/affordability): Estimate how much home you can afford based on income and debts.
+- [Buydown Calculator](/buydown): Calculate 3-2-1, 2-1, and 1-0 temporary rate buydowns.
+- [Early Payoff Calculator](/early-payoff): See how extra payments or biweekly schedules accelerate payoff.
+- [Cash-Out vs HELOC vs 2nd Mortgage](/cash-out-vs-heloc): Compare three ways to tap home equity.
+- [Reverse Mortgage Calculator](/reverse-mortgage): HECM/PLF estimates for borrowers 62+.
+- [Comparisons](/comparisons): Side-by-side loan scenario comparisons.
+- [Definitions](/definitions): Glossary of mortgage terms.
+- [Pricing](/pricing): Free and Professional subscription plans.
+- [FAQ](/faq): Answers to common mortgage and calculator questions.
+- [Blog](/blog): Home buying, refinancing, and credit guides.
+- [About](/about): About Mortgage Quote Pro.
+- [Contact](/contact): Get in touch.
+
+## Blog
+
+- [First-Time Home Buyer's Guide](/blog/first-time-buyer-guide): Complete guide for first-time buyers.
+- [Understanding Mortgage Types](/blog/understanding-mortgage-types): Conventional, FHA, VA, and more.
+- [Improve Your Credit Score](/blog/improve-credit-score): Strategies for better mortgage rates.
+- [Closing Costs Guide](/blog/closing-costs-guide): Every fee at closing, explained.
+- [When to Refinance](/blog/when-to-refinance): Strategic refinance timing.
+- [PMI Guide](/blog/pmi-guide): What PMI costs and how to remove it.
+- [ARM vs Fixed-Rate](/blog/arm-vs-fixed): Adjustable vs fixed mortgage comparison.
+- [FHA vs Conventional](/blog/fha-vs-conventional): Side-by-side loan comparison.
+
+## Optional
+
+- [Privacy Policy](/privacy)
+- [Terms of Service](/terms)

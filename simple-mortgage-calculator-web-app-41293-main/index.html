@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=5" />
+    <title>Mortgage Quote Pro — Mortgage Calculators &amp; Quotes</title>
+    <meta name="description" content="Free mortgage calculators with PMI, taxes, insurance, DTI, buydowns, HELOC, and PDF quote exports for buyers, refinancers, and loan officers." />
+    <meta name="author" content="Mortgage Quote Pro" />
+    <link rel="canonical" href="https://mortgagequotepro.com/" />
+    <meta name="google-site-verification" content="5z4sNjbg1S0XhWBeGD0Xf2FplFhQF2BZdB8Zkk_uoO0" />
+
+    <!-- PWA -->
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#0a1628" />
+    <link rel="apple-touch-icon" href="/icons/apple-touch-icon.png" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-title" content="MQP" />
+    <script type="application/ld+json">
+      {"@context":"https://schema.org","@type":"Organization","name":"Mortgage Quote Pro","url":"https://mortgagequotepro.com/"}
+    </script>
+    <script type="application/ld+json">
+      {"@context":"https://schema.org","@type":"WebSite","name":"Mortgage Quote Pro","url":"https://mortgagequotepro.com/"}
+    </script>
+    
+    <!-- Critical inline CSS for faster FCP -->
+    <style>
+      body{margin:0;font-family:system-ui,-apple-system,sans-serif;background:#0a0a0a;color:#fafafa}
+      #root{min-height:100vh}
+      .loading-skeleton{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;gap:1rem}
+      .loading-skeleton::before{content:'';width:48px;height:48px;border:3px solid #333;border-top-color:#fafafa;border-radius:50%;animation:spin 1s linear infinite}
+      @keyframes spin{to{transform:rotate(360deg)}}
+    </style>
+    
+    <!-- Google Fonts - Reduced to essential fonts only, loaded asynchronously -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@400;600;700&display=swap">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet" media="print" onload="this.media='all'">
+    <noscript><link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Playfair+Display:wght@400;600;700&display=swap" rel="stylesheet"></noscript>
+
+    <meta property="og:title" content="Mortgage Quote Pro — Mortgage Calculators &amp; Quotes" />
+    <meta property="og:description" content="Free mortgage calculators with PMI, taxes, insurance, DTI, buydowns, HELOC, and PDF quote exports." />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://mortgagequotepro.com/" />
+    <meta property="og:site_name" content="Mortgage Quote Pro" />
+
+    <meta name="twitter:card" content="summary_large_image" />
+    
+  </head>
+
+  <body>
+    <div id="root"><div class="loading-skeleton"></div></div>
+    <!-- IMPORTANT: DO NOT REMOVE THIS SCRIPT TAG OR THIS VERY COMMENT! -->
+    <script src="https://cdn.gpteng.co/gptengineer.js" type="module"></script>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

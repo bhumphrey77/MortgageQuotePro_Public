@@ -1,0 +1,1256 @@
+{
+  "version": 1,
+  "sdk_version": "0.23.0",
+  "path": "/functions/v1/mcp",
+  "auth": {
+    "type": "oauth",
+    "issuer": "https://htwwvwwdyqwpjhghjbpi.supabase.co/auth/v1",
+    "accepted_audiences": [
+      "authenticated"
+    ]
+  },
+  "mcp": {
+    "server": {
+      "name": "mortgage-quote-pro-mcp",
+      "version": "1.3.0",
+      "title": "Mortgage Quote Pro"
+    },
+    "tools": [
+      {
+        "name": "analyzePurchaseScenario",
+        "title": "Analyze Home Purchase Scenario (Flagship Planning Tool)",
+        "description": "Use this whenever a user is considering purchasing a home and wants a complete financial analysis in a single call — 'can I qualify', 'how much house can I afford', 'should I put 10% or 20% down', 'what will my payment be', 'would paying extra help', 'can I comfortably afford this home'. Orchestrates Mortgage Quote Pro's existing purchase calculators (payment, DTI, affordability, early payoff, temporary buydown) into one comprehensive purchase-only response. Deterministic: all recommendations, warnings, and next steps are generated from predefined business rules, not AI reasoning. Returns the standard MQP envelope with `paymentAnalysis`, `qualificationAnalysis`, `affordabilityAnalysis`, `buydownAnalysis`, `earlyPayoffAnalysis`, `recommendations`, `warnings`, `assumptions`, `nextSteps`, `metadata`, and a top-level `financialSnapshot`.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false,
+          "destructiveHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "purchasePrice": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "interestRate": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 30,
+              "description": "Annual rate as percent, e.g. 6.5"
+            },
+            "loanTerm": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "description": "Loan term in years."
+            },
+            "downPaymentAmount": {
+              "type": "number",
+              "minimum": 0
+            },
+            "downPaymentPercent": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 100
+            },
+            "annualIncome": {
+              "type": "number",
+              "minimum": 0
+            },
+            "monthlyDebt": {
+              "type": "number",
+              "minimum": 0
+            },
+            "propertyTaxes": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Annual property taxes in USD."
+            },
+            "homeownersInsurance": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Annual homeowner's insurance in USD."
+            },
+            "hoa": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Monthly HOA dues."
+            },
+            "mortgageInsurance": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Monthly PMI/MI override in USD. Otherwise estimated from FICO+LTV."
+            },
+            "creditScore": {
+              "type": "integer",
+              "minimum": 300,
+              "maximum": 850
+            },
+            "state": {
+              "type": "string"
+            },
+            "county": {
+              "type": "string"
+            },
+            "propertyType": {
+              "type": "string"
+            },
+            "occupancy": {
+              "type": "string"
+            },
+            "extraMonthlyPayment": {
+              "type": "number",
+              "minimum": 0
+            },
+            "cashAvailable": {
+              "type": "number",
+              "minimum": 0
+            },
+            "desiredMonthlyPayment": {
+              "type": "number",
+              "minimum": 0
+            },
+            "firstTimeBuyer": {
+              "type": "boolean"
+            },
+            "militaryStatus": {
+              "type": "boolean"
+            },
+            "loanType": {
+              "type": "string",
+              "enum": [
+                "Conventional",
+                "FHA",
+                "VA",
+                "USDA",
+                "Jumbo"
+              ],
+              "default": "Conventional"
+            }
+          },
+          "required": [
+            "purchasePrice",
+            "interestRate",
+            "loanTerm"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "calculateMortgagePayment",
+        "title": "Calculate Full Mortgage Payment Breakdown (PITI + PMI + APR)",
+        "description": "Use this whenever a user asks 'what would my mortgage payment be', 'what's my PITI', 'what's my APR', or wants to know how PMI, HOA, or a HELOC/2nd affect their monthly cost. Computes a full monthly breakdown: principal & interest, monthly property tax, homeowner's insurance, HOA, PMI (FICO-tiered for Conventional when `ficoScore` supplied, LTV > 80%), APR, LTV, CLTV, and estimated closing costs. Supports Conventional, FHA, VA, USDA, Jumbo, and HELOC/2nd-lien scenarios (including an interest-only period and combined payment with an existing 1st mortgage). Assumes fixed-rate amortization over the full term, US conventions, USD, rates as percent (e.g. 6.5 = 6.5%). Returns a standardized envelope with `results` (all payment components), `recommendations` (e.g. PMI-drop guidance), `warnings` (e.g. LTV > 97), and `metadata`.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "mode": {
+              "type": "string",
+              "enum": [
+                "purchase",
+                "refinance"
+              ],
+              "default": "purchase",
+              "description": "Purchase or refinance."
+            },
+            "homePrice": {
+              "type": "number",
+              "exclusiveMinimum": 0,
+              "description": "Home price (purchase) or appraised value (refinance)."
+            },
+            "loanAmount": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Explicit loan amount. If omitted on a purchase, derived as homePrice - downPayment."
+            },
+            "downPayment": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Down payment in dollars (purchase only)."
+            },
+            "annualRatePercent": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 30,
+              "description": "Interest rate as percent, e.g. 6.5"
+            },
+            "termYears": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "description": "Loan term in years."
+            },
+            "loanType": {
+              "type": "string",
+              "enum": [
+                "Conventional",
+                "FHA",
+                "VA",
+                "USDA",
+                "Jumbo",
+                "HELOC"
+              ],
+              "default": "Conventional"
+            },
+            "annualPropertyTax": {
+              "type": "number",
+              "minimum": 0,
+              "default": 0
+            },
+            "annualHomeInsurance": {
+              "type": "number",
+              "minimum": 0,
+              "default": 0
+            },
+            "monthlyHoa": {
+              "type": "number",
+              "minimum": 0,
+              "default": 0
+            },
+            "ficoScore": {
+              "type": "integer",
+              "minimum": 300,
+              "maximum": 850,
+              "description": "FICO — enables FICO-tiered PMI for Conventional loans with LTV > 80."
+            },
+            "pmiAnnualRatePercent": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 5,
+              "description": "Explicit PMI annual rate (percent). Overrides FICO lookup."
+            },
+            "existingFirstMortgageBalance": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Refi/HELOC: outstanding 1st-mortgage balance for CLTV."
+            },
+            "existingFirstMortgagePI": {
+              "type": "number",
+              "minimum": 0,
+              "description": "Refi/HELOC: existing 1st P&I so the combined total can be reported."
+            },
+            "interestOnlyYears": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 20,
+              "description": "HELOC interest-only period in years."
+            }
+          },
+          "required": [
+            "homePrice",
+            "annualRatePercent",
+            "termYears"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "calculateBuydown",
+        "title": "Calculate Temporary Rate Buydown (3-2-1 / 2-1 / 1-0)",
+        "description": "Use this whenever a user asks about a temporary rate buydown, a seller-paid rate reduction, or how much a '3-2-1', '2-1', or '1-0' buydown would cost. Computes the effective interest rate and P&I payment for each buydown year, the fully-indexed note-rate P&I after the buydown ends, and the total pre-funded subsidy the seller (or lender credit) must provide at closing. Assumes fixed-rate loan, US conventions, standard temporary-buydown schedules. Returns a standardized envelope with `results.schedule` (per-year rates and payments), `results.totalSubsidy`, `recommendations` (payment shock reminder), and `warnings`.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "buydownType": {
+              "type": "string",
+              "enum": [
+                "3-2-1",
+                "2-1",
+                "1-0"
+              ]
+            },
+            "purchasePrice": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "downPaymentAmount": {
+              "type": "number",
+              "minimum": 0
+            },
+            "noteRatePercent": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 30,
+              "description": "Fully-indexed note rate as percent."
+            },
+            "termYears": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 30
+            }
+          },
+          "required": [
+            "buydownType",
+            "purchasePrice",
+            "downPaymentAmount",
+            "noteRatePercent"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "calculateEarlyPayoff",
+        "title": "Calculate Early Mortgage Payoff & Interest Savings",
+        "description": "Use this whenever a user asks 'what if I paid extra on my mortgage', 'how much sooner would I pay off my loan', 'should I switch to biweekly payments', or wants to see the impact of a one-time lump-sum. Models extra-payment strategies (monthly, annual, one-time, or biweekly-equivalent) against the current amortization schedule. Assumes fixed-rate, standard monthly amortization; biweekly mode credits 26 half-payments per year (13 full payments). Returns `results` with new payoff date, months saved, interest saved, and before/after totals, plus recommendations comparing strategies.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "originalLoanAmount": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "annualRatePercent": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 30
+            },
+            "originalTermYears": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            },
+            "currentBalance": {
+              "type": "number",
+              "minimum": 0
+            },
+            "remainingTermMonths": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "monthlyExtraPayment": {
+              "type": "number",
+              "minimum": 0,
+              "default": 0
+            },
+            "annualExtraPayment": {
+              "type": "number",
+              "minimum": 0,
+              "default": 0
+            },
+            "oneTimePayment": {
+              "type": "number",
+              "minimum": 0,
+              "default": 0
+            },
+            "oneTimePaymentMonth": {
+              "type": "integer",
+              "minimum": 0,
+              "default": 0
+            },
+            "useBiweeklyPayments": {
+              "type": "boolean",
+              "default": false
+            }
+          },
+          "required": [
+            "originalLoanAmount",
+            "annualRatePercent",
+            "originalTermYears",
+            "currentBalance",
+            "remainingTermMonths"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "compareCashOutVsHelocVsSecond",
+        "title": "Compare Cash-Out Refinance vs HELOC vs Fixed 2nd Mortgage",
+        "description": "Use this whenever a user is deciding how to tap home equity — 'should I do a cash-out refi, a HELOC, or a 2nd mortgage?', 'which is cheapest?', 'what's my blended rate?'. Runs a three-way head-to-head over a chosen comparison horizon (5/7/10/15/20/30y). For each option returns starting monthly payment, total interest over the horizon, total closing costs, total cost, ending balance, blended effective rate (across old + new debt), and cost of new money. Also identifies the winners by total cost and by blended rate. Assumes fixed-rate cash-out refi, HELOC with interest-only draw then amortization, and fixed-rate closed-end 2nd. Returns standardized envelope with `results` per option, `recommendations` naming the cheapest, and `warnings` from the underlying validator.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "homeValue": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "originalLoanAmount": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "originalTermYears": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            },
+            "currentBalance": {
+              "type": "number",
+              "minimum": 0
+            },
+            "currentRatePercent": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 30
+            },
+            "remainingTermYears": {
+              "type": "number",
+              "minimum": 0.5,
+              "maximum": 50
+            },
+            "cashNeeded": {
+              "type": "number",
+              "minimum": 0
+            },
+            "comparisonHorizonYears": {
+              "type": "number",
+              "enum": [
+                5,
+                7,
+                10,
+                15,
+                20,
+                30
+              ]
+            },
+            "refiRatePercent": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 30
+            },
+            "refiTermYears": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            },
+            "refiClosingCostsPercent": {
+              "type": "number",
+              "minimum": 0
+            },
+            "rollClosingCostsIntoLoan": {
+              "type": "boolean",
+              "default": true
+            },
+            "helocRatePercent": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 30
+            },
+            "helocDrawYears": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 20
+            },
+            "helocRepaymentYears": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 30
+            },
+            "helocRateAdjustmentPercent": {
+              "type": "number",
+              "default": 0
+            },
+            "helocClosingCosts": {
+              "type": "number",
+              "minimum": 0,
+              "default": 0
+            },
+            "secondRatePercent": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 30
+            },
+            "secondTermYears": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50
+            },
+            "secondClosingCostsPercent": {
+              "type": "number",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "homeValue",
+            "originalLoanAmount",
+            "originalTermYears",
+            "currentBalance",
+            "currentRatePercent",
+            "remainingTermYears",
+            "cashNeeded",
+            "comparisonHorizonYears",
+            "refiRatePercent",
+            "refiTermYears",
+            "refiClosingCostsPercent",
+            "helocRatePercent",
+            "helocDrawYears",
+            "helocRepaymentYears",
+            "secondRatePercent",
+            "secondTermYears",
+            "secondClosingCostsPercent"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "calculateReverseMortgage",
+        "title": "Calculate HECM Reverse Mortgage Estimate (Age 62+)",
+        "description": "Use this whenever a user asks about a reverse mortgage, HECM, home equity conversion mortgage, or how much cash a senior 62+ could pull from their home without a monthly mortgage payment. Estimates principal limit using HUD PLF tables, upfront MIP, origination fee, total closing costs, and net Year-1 proceeds. Compares payout scenarios: lump sum, tenure (lifetime monthly), term (fixed years), and line of credit. Flags LESA (Life Expectancy Set-Aside) requirement, non-borrowing-spouse impact, insufficient equity, and condo eligibility. Assumes HECM program rules and current FHA lending limit. Returns standardized envelope with `results` (limits, MIP, scenarios, flags, bestOption), `recommendations`, and `warnings`.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "age": {
+              "type": "integer",
+              "minimum": 62,
+              "maximum": 110
+            },
+            "spouseAge": {
+              "type": "integer",
+              "minimum": 18,
+              "maximum": 110
+            },
+            "maritalStatus": {
+              "type": "string",
+              "enum": [
+                "single",
+                "married"
+              ],
+              "default": "single"
+            },
+            "nonBorrowingSpouse": {
+              "type": "boolean",
+              "default": false
+            },
+            "homeValue": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "propertyType": {
+              "type": "string",
+              "enum": [
+                "single_family",
+                "condo",
+                "2-4_unit",
+                "manufactured"
+              ],
+              "default": "single_family"
+            },
+            "fhaApprovedCondo": {
+              "type": "boolean",
+              "default": false
+            },
+            "mortgageBalance": {
+              "type": "number",
+              "minimum": 0,
+              "default": 0
+            },
+            "lienPosition": {
+              "type": "string",
+              "enum": [
+                "1st",
+                "2nd"
+              ],
+              "default": "1st"
+            },
+            "estimatedRatePercent": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 15
+            },
+            "rateType": {
+              "type": "string",
+              "enum": [
+                "fixed",
+                "adjustable"
+              ],
+              "default": "adjustable"
+            },
+            "annualPropertyTaxes": {
+              "type": "number",
+              "minimum": 0,
+              "default": 0
+            },
+            "annualInsurance": {
+              "type": "number",
+              "minimum": 0,
+              "default": 0
+            },
+            "monthlyHoa": {
+              "type": "number",
+              "minimum": 0,
+              "default": 0
+            },
+            "creditProfile": {
+              "type": "string",
+              "enum": [
+                "excellent",
+                "good",
+                "fair",
+                "poor"
+              ],
+              "default": "good"
+            },
+            "goal": {
+              "type": "string",
+              "enum": [
+                "cash_out",
+                "eliminate_payment",
+                "income",
+                "line_of_credit",
+                "purchase"
+              ],
+              "default": "cash_out"
+            },
+            "termYears": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 30,
+              "default": 10
+            }
+          },
+          "required": [
+            "age",
+            "homeValue",
+            "estimatedRatePercent"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "calculateAffordability",
+        "title": "Calculate Maximum Home Affordability (DTI-Based)",
+        "description": "Use this whenever a user asks 'how much home can I afford', 'what's my max purchase price', or wants to see affordability at different DTI tiers. Estimates the maximum home price at three back-end DTI tiers — Affordable (43%), Stretch (45%), Aggressive (49%) — given annual income, monthly debts, down payment, rate, term, and monthly housing costs (taxes, insurance, HOA, PMI). Assumes fixed-rate, fully-amortizing loan, US conventions. Returns standardized envelope with per-tier max home price and max monthly housing payment, plus recommendations flagging tiers above typical Conventional/FHA guidelines.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "annualIncome": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "monthlyDebts": {
+              "type": "number",
+              "minimum": 0,
+              "default": 0
+            },
+            "downPayment": {
+              "type": "number",
+              "minimum": 0,
+              "default": 0
+            },
+            "annualRatePercent": {
+              "type": "number",
+              "minimum": 0,
+              "maximum": 30
+            },
+            "termYears": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 50,
+              "default": 30
+            },
+            "annualPropertyTax": {
+              "type": "number",
+              "minimum": 0,
+              "default": 0
+            },
+            "annualHomeInsurance": {
+              "type": "number",
+              "minimum": 0,
+              "default": 0
+            },
+            "monthlyHoa": {
+              "type": "number",
+              "minimum": 0,
+              "default": 0
+            },
+            "monthlyPmi": {
+              "type": "number",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          "required": [
+            "annualIncome",
+            "annualRatePercent"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "calculateDti",
+        "title": "Calculate Debt-to-Income Ratio (Front-End & Back-End)",
+        "description": "Use this whenever a user asks 'what's my DTI', 'do I qualify for a mortgage', or wants to check housing/debt ratios against loan-program guidelines. Computes front-end DTI (housing / gross income) and back-end DTI (housing + all other monthly debts / gross income). Compares against common Conventional (28/36), FHA (31/43), and QM (43% back-end) thresholds. Assumes housing payment already includes PITI + HOA + MI. Returns standardized envelope with both ratios, pass/fail flags per guideline, and recommendations.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "grossMonthlyIncome": {
+              "type": "number",
+              "exclusiveMinimum": 0
+            },
+            "proposedHousingPayment": {
+              "type": "number",
+              "minimum": 0,
+              "description": "PITI + HOA + MI."
+            },
+            "otherMonthlyDebts": {
+              "type": "number",
+              "minimum": 0,
+              "default": 0
+            }
+          },
+          "required": [
+            "grossMonthlyIncome",
+            "proposedHousingPayment"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "listQuotes",
+        "title": "List Saved Mortgage Quotes",
+        "description": "Use this whenever a user asks 'show my saved quotes', 'find the quote I saved for X', or wants to browse their history before opening, editing, sharing, or deleting a quote. Returns the signed-in loan officer's saved quotes across all calculators (standard, buydown, earlyPayoff, cashOutVsHeloc, reverseMortgage), sorted by most recently updated. Optional filters: `calculatorType`, `search` (case-insensitive quote-name substring). Read-only. Returns id, quoteName, calculatorType, timestamps, and specialNotes.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "calculatorType": {
+              "type": "string",
+              "enum": [
+                "standard",
+                "buydown",
+                "earlyPayoff",
+                "cashOutVsHeloc",
+                "reverseMortgage"
+              ]
+            },
+            "search": {
+              "type": "string",
+              "description": "Case-insensitive quote-name substring match."
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 100,
+              "default": 50
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "getQuote",
+        "title": "Get Saved Mortgage Quote by ID",
+        "description": "Use this whenever a user references a specific saved quote and you need its full inputs and calculated results — for example before editing (via `saveQuote` with the same id), emailing (`sendQuoteEmail`), sharing (`generateQuoteShareLink`), or deleting (`deleteQuote`). Returns the full record: id, quoteName, calculatorType, inputs (opaque JSON matching that calculator), results (opaque JSON), specialNotes, createdAt, updatedAt. Read-only. Scoped to the signed-in user via RLS.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "saveQuote",
+        "title": "Save or Update Mortgage Quote",
+        "description": "Use this to persist a quote the user wants to keep or to update an existing saved quote. Omit `id` to create a new quote; supply `id` to update in place (the same id returned by `listQuotes` / `getQuote`). `inputs` and `results` are opaque JSON blobs — pass whatever shape the corresponding calculator produced. `calculatorType` must be one of: standard, buydown, earlyPayoff, cashOutVsHeloc, reverseMortgage. Non-destructive write; scoped to the signed-in user. Returns `{ id, created | updated }`.",
+        "annotations": {
+          "readOnlyHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "Omit to create; supply to update."
+            },
+            "quoteName": {
+              "type": "string",
+              "minLength": 1,
+              "description": "Human-readable name for the saved quote."
+            },
+            "calculatorType": {
+              "type": "string",
+              "enum": [
+                "standard",
+                "buydown",
+                "earlyPayoff",
+                "cashOutVsHeloc",
+                "reverseMortgage"
+              ]
+            },
+            "inputs": {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "Full input payload for the calculator (opaque JSON)."
+            },
+            "results": {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "Full result payload for the calculator (opaque JSON)."
+            },
+            "specialNotes": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "quoteName",
+            "calculatorType",
+            "inputs",
+            "results"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "deleteQuote",
+        "title": "Delete Saved Mortgage Quote (Destructive)",
+        "description": "Permanently deletes a saved mortgage quote owned by the signed-in loan officer. Use this only after the user has explicitly asked to remove a specific quote and you have confirmed the correct `id` (call `listQuotes` or `getQuote` first when unsure). Requires `confirm: true`; the first call without it will refuse and prompt for confirmation. Returns `{ id, deleted: true }` on success. This action is irreversible — the quote cannot be restored.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "UUID of the saved quote to delete."
+            },
+            "confirm": {
+              "type": "boolean",
+              "description": "Must be `true` to actually delete. Omit or set false to have the tool refuse and ask the user to confirm."
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "generateQuoteShareLink",
+        "title": "Generate Shareable Quote Link (App URL)",
+        "description": "Use this whenever a user wants to open a saved quote in the browser to print, export to PDF, or review visually — the MCP server does not render PDFs. Returns an authenticated app URL (`/quote/:id`) pointing to the Quote Detail page. The recipient must be signed in as the quote's owner to view it. Read-only lookup that also validates the quote exists and belongs to the caller.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "listLeads",
+        "title": "List CRM Leads",
+        "description": "Use this whenever a user asks 'show my leads', 'who did I talk to recently', 'find the borrower named X', or wants to triage their pipeline. Returns the signed-in loan officer's CRM leads sorted by most recently updated. Filters: `status` (e.g. new, contacted, qualified, closed, lost), `source` (calculator, referral, website), `search` (case-insensitive substring against name and email). Read-only. Scoped to the signed-in user via RLS.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "status": {
+              "type": "string",
+              "description": "Lead status filter (e.g. new, contacted, qualified, closed, lost)."
+            },
+            "source": {
+              "type": "string",
+              "description": "Lead source filter (e.g. calculator, referral, website)."
+            },
+            "search": {
+              "type": "string",
+              "description": "Substring match against name and email."
+            },
+            "limit": {
+              "type": "integer",
+              "minimum": 1,
+              "maximum": 200,
+              "default": 50
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "getLead",
+        "title": "Get CRM Lead with Recent Activity",
+        "description": "Use this whenever a user references a specific lead and needs the full record plus recent history — before logging a call, updating status, or preparing a follow-up. Returns the full lead row plus the most recent activity entries (default 10, max 50). Read-only. Scoped to the signed-in user.",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "activityLimit": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 50,
+              "default": 10
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "upsertLead",
+        "title": "Create or Update CRM Lead",
+        "description": "Use this to add a new borrower to the CRM or to update an existing lead's contact info, status, source, property address, notes, or attached quote snapshot. Omit `id` to create; supply `id` to update in place. When creating a new lead with contact information, `consentMarketing` MUST be `true` — the app requires documented marketing consent for captured contacts. Non-destructive; scoped to the signed-in loan officer. Returns `{ id, created | updated }`.",
+        "annotations": {
+          "readOnlyHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "email": {
+              "type": "string",
+              "format": "email"
+            },
+            "name": {
+              "type": "string"
+            },
+            "phone": {
+              "type": "string"
+            },
+            "status": {
+              "type": "string"
+            },
+            "leadSource": {
+              "type": "string"
+            },
+            "propertyAddress": {
+              "type": "string"
+            },
+            "notes": {
+              "type": "string"
+            },
+            "quoteData": {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "Optional snapshot of the quote inputs/results attached to this lead."
+            },
+            "utmSource": {
+              "type": "string"
+            },
+            "utmCampaign": {
+              "type": "string"
+            },
+            "consentMarketing": {
+              "type": "boolean"
+            }
+          },
+          "required": [
+            "email"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "logLeadActivity",
+        "title": "Log Activity on a CRM Lead",
+        "description": "Use this whenever the user reports an interaction with a lead — a call, sent email, note, or status change — that should be preserved on the lead's timeline. Appends a timestamped entry to the lead's activity history. Optionally bumps `last_contacted_at` to now when `markContacted` is true (recommended for calls/emails). Non-destructive write; scoped to the signed-in user.",
+        "annotations": {
+          "readOnlyHint": false,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "leadId": {
+              "type": "string",
+              "format": "uuid"
+            },
+            "activityType": {
+              "type": "string",
+              "enum": [
+                "call",
+                "email",
+                "note",
+                "status_change",
+                "task",
+                "meeting"
+              ],
+              "description": "Activity type. One of: call, email, note, status_change, task, meeting."
+            },
+            "description": {
+              "type": "string"
+            },
+            "markContacted": {
+              "type": "boolean",
+              "default": false,
+              "description": "Bump last_contacted_at to now."
+            }
+          },
+          "required": [
+            "leadId",
+            "activityType"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "deleteLead",
+        "title": "Delete CRM Lead (Destructive)",
+        "description": "Permanently deletes a CRM lead owned by the signed-in loan officer, cascading its full activity history (calls, notes, emails, status changes). Use only when the user has clearly asked to remove a specific lead and you have verified the `id` via `listLeads` or `getLead`. Requires `confirm: true`; the first call without it will refuse and prompt for user confirmation. Returns `{ id, deleted: true }`. Irreversible — do not use for archiving or status changes; update the lead's `status` instead.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "id": {
+              "type": "string",
+              "format": "uuid",
+              "description": "UUID of the lead to delete."
+            },
+            "confirm": {
+              "type": "boolean",
+              "description": "Must be `true` to actually delete. Omit or set false to have the tool refuse and ask the user to confirm."
+            }
+          },
+          "required": [
+            "id"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "getMyProfile",
+        "title": "Get My Loan Officer Profile",
+        "description": "Use this whenever an assistant needs the signed-in loan officer's identity to personalize an email, pre-approval letter, quote, or introduction — name, title, company, NMLS numbers, phone, website, work email, state licenses. Read-only. Returns `{ profile }` (or null if not yet set up).",
+        "annotations": {
+          "readOnlyHint": true,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "$schema": "http://json-schema.org/draft-07/schema#",
+          "type": "object",
+          "properties": {}
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "updateMyProfile",
+        "title": "Update My Loan Officer Profile",
+        "description": "Use this whenever a user asks to update their profile — name, title, company, NMLS, phone, website, work email, state licenses. Any field omitted from the call is left unchanged (partial update). Avatar and company logo images are managed inside the app UI and cannot be set here. Non-destructive; scoped to the signed-in user. Returns `{ profile }` with the updated record.",
+        "annotations": {
+          "readOnlyHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "fullName": {
+              "type": "string"
+            },
+            "title": {
+              "type": "string"
+            },
+            "companyName": {
+              "type": "string"
+            },
+            "companyPhone": {
+              "type": "string"
+            },
+            "companyAddress": {
+              "type": "string"
+            },
+            "workEmail": {
+              "type": "string",
+              "format": "email"
+            },
+            "phone": {
+              "type": "string"
+            },
+            "website": {
+              "type": "string",
+              "format": "uri"
+            },
+            "nmlsLicense": {
+              "type": "string"
+            },
+            "nmlsCompany": {
+              "type": "string"
+            },
+            "stateLicenseText": {
+              "type": "string"
+            }
+          },
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      },
+      {
+        "name": "sendQuoteEmail",
+        "title": "Email Mortgage Quote to Recipient (External Send)",
+        "description": "Use this ONLY when the user has explicitly asked to email a quote to a specific recipient and has approved sending. This is an external action that delivers real email from the loan officer's configured sender domain — treat as requiring confirmation. Supply either `quoteId` (for a saved quote) or inline `quoteData`. Free-tier accounts are limited to 2 sends per day; the tool returns the remaining daily quota so the assistant can inform the user. `calculatorType` must match the quote type. Returns delivery status and updated daily count.",
+        "annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": true
+        },
+        "inputSchema": {
+          "type": "object",
+          "properties": {
+            "recipientEmail": {
+              "type": "string",
+              "format": "email",
+              "description": "Recipient email address."
+            },
+            "recipientName": {
+              "type": "string",
+              "description": "Recipient display name."
+            },
+            "calculatorType": {
+              "type": "string",
+              "enum": [
+                "standard",
+                "buydown",
+                "earlyPayoff",
+                "cashOutVsHeloc",
+                "reverseMortgage"
+              ]
+            },
+            "quoteId": {
+              "type": "string",
+              "format": "uuid",
+              "description": "UUID of a saved quote to send. Use this OR quoteData."
+            },
+            "quoteData": {
+              "type": "object",
+              "additionalProperties": {},
+              "description": "Inline quote payload if not using quoteId."
+            },
+            "confirm": {
+              "type": "boolean",
+              "description": "Must be `true` to actually send. Omit or set false to have the tool refuse and ask the user to confirm the recipient and content."
+            }
+          },
+          "required": [
+            "recipientEmail",
+            "calculatorType"
+          ],
+          "additionalProperties": false,
+          "$schema": "http://json-schema.org/draft-07/schema#"
+        },
+        "outputSchema": null
+      }
+    ]
+  }
+}

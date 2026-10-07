@@ -1,0 +1,25 @@
+project_id = "htwwvwwdyqwpjhghjbpi"
+
+[functions.send-email]
+verify_jwt = false
+
+[functions.send-reset-email]
+verify_jwt = false
+
+[functions.send-welcome-email]
+verify_jwt = true
+
+[functions.delete-user]
+verify_jwt = false
+
+[functions.send-quote-email]
+verify_jwt = true
+
+[functions.lookup-loan-officer]
+verify_jwt = false
+
+[functions.extract-mortgage-scenario]
+verify_jwt = false
+
+[functions.transcribe-audio]
+verify_jwt = false
